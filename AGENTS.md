@@ -29,7 +29,6 @@ Skills live in `.agents/skills/`. Invoke them by name (e.g., `/office-hours`).
 | `/freeze` | Lock edits to one directory. Hard block, not just a warning. |
 | `/guard` | Activate both careful + freeze at once. |
 | `/unfreeze` | Remove directory edit restrictions. |
-| `/gstack-upgrade` | Update gstack to the latest version. |
 
 ## Build commands
 

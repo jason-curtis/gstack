@@ -663,8 +663,6 @@ Every gstack skill now follows the **Completeness Principle**: always recommend 
 full implementation when AI makes the marginal cost near-zero. No more "Choose B
 because it's 90% of the value" when option A is 70 lines more code.
 
-Read the philosophy: https://garryslist.org/posts/boil-the-ocean
-
 - **Completeness scoring**: every AskUserQuestion option now shows a completeness
   score (1-10), biasing toward the complete solution
 - **Dual time estimates**: effort estimates show both human-team and CC+gstack time

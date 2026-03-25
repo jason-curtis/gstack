@@ -52,8 +52,6 @@ human engineering time was the bottleneck.
 - "Let's defer tests to a follow-up PR." (Tests are the cheapest lake to boil.)
 - "This would take 2 weeks." (Say: "2 weeks human / ~1 hour AI-assisted.")
 
-Read more: https://garryslist.org/posts/boil-the-ocean
-
 ---
 
 ## 2. Search Before Building
