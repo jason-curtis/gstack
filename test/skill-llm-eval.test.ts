@@ -739,7 +739,7 @@ describeIfSelected('Deploy skill evals', [
 
 // Block 5: Other skills
 describeIfSelected('Other skill evals', [
-  'retro/SKILL.md instructions', 'qa-only/SKILL.md workflow', 'gstack-upgrade/SKILL.md upgrade flow',
+  'retro/SKILL.md instructions', 'qa-only/SKILL.md workflow',
 ], () => {
   testIfSelected('retro/SKILL.md instructions', async () => {
     await runWorkflowJudge({
@@ -762,18 +762,6 @@ describeIfSelected('Other skill evals', [
       endMarker: '## Important Rules',
       judgeContext: 'a report-only QA testing workflow',
       judgeGoal: 'how to systematically QA test a web application and produce a structured report with health score, screenshots, and repro steps — without fixing anything',
-    });
-  }, 30_000);
-
-  testIfSelected('gstack-upgrade/SKILL.md upgrade flow', async () => {
-    await runWorkflowJudge({
-      testName: 'gstack-upgrade/SKILL.md upgrade flow',
-      suite: 'Other skill evals',
-      skillPath: 'gstack-upgrade/SKILL.md',
-      startMarker: '## Inline upgrade flow',
-      endMarker: '## Standalone usage',
-      judgeContext: 'a version upgrade detection and execution workflow',
-      judgeGoal: 'how to detect install type, compare versions, back up current install, upgrade via git or fresh clone, run setup, and show what changed',
     });
   }, 30_000);
 });
