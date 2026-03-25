@@ -1,5 +1,7 @@
 # gstack
 
+> **Fork notice:** This is a fork of [garrytan/gstack](https://github.com/garrytan/gstack) with auto-update/update checks, telemetry/analytics, and YCombinator branding/easter eggs removed.
+
 > Claude Code skills + fast headless browser. One repo, one install, entire AI engineering workflow.
 
 gstack turns Claude Code into a virtual engineering team — a CEO who rethinks the product, an eng manager who locks architecture, a designer who catches AI slop, a reviewer who finds production bugs, a QA lead who opens a real browser, a security officer who runs OWASP + STRIDE audits, and a release engineer who ships the PR. Twenty specialists and eight power tools, all slash commands, all Markdown, all free, MIT license.
