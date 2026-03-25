@@ -1,6 +1,7 @@
 # gstack
 
-> **Fork notice:** This is a fork of [garrytan/gstack](https://github.com/garrytan/gstack) with auto-update/update checks, telemetry/analytics, and YCombinator branding/easter eggs removed.
+> [!NOTE]
+> **Fork of [garrytan/gstack](https://github.com/garrytan/gstack)** — auto-update/update checks, telemetry/analytics, and YCombinator branding removed.
 
 > Claude Code skills + fast headless browser. One repo, one install, entire AI engineering workflow.
 
