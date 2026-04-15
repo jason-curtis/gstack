@@ -10,7 +10,6 @@ GSTACK_ROOT="$HOME/${hostConfig.globalRoot}"
 [ -n "$_ROOT" ] && [ -d "$_ROOT/${ctx.paths.localSkillRoot}" ] && GSTACK_ROOT="$_ROOT/${ctx.paths.localSkillRoot}"
 GSTACK_BIN="$GSTACK_ROOT/bin"
 GSTACK_BROWSE="$GSTACK_ROOT/browse/dist"
-GSTACK_DESIGN="$GSTACK_ROOT/design/dist"
 `
     : '';
 

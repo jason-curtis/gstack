@@ -739,7 +739,6 @@ describeIfSelected('Deploy skill evals', [
 
 // Block 5: Other skills
 describeIfSelected('Other skill evals', [
-  'retro/SKILL.md instructions', 'qa-only/SKILL.md workflow', 'gstack-upgrade/SKILL.md upgrade flow',
 ], () => {
   testIfSelected('retro/SKILL.md instructions', async () => {
     await runWorkflowJudge({
@@ -765,11 +764,8 @@ describeIfSelected('Other skill evals', [
     });
   }, 30_000);
 
-  testIfSelected('gstack-upgrade/SKILL.md upgrade flow', async () => {
     await runWorkflowJudge({
-      testName: 'gstack-upgrade/SKILL.md upgrade flow',
       suite: 'Other skill evals',
-      skillPath: 'gstack-upgrade/SKILL.md',
       startMarker: '## Inline upgrade flow',
       endMarker: '## Standalone usage',
       judgeContext: 'a version upgrade detection and execution workflow',

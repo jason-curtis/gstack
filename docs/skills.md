@@ -38,7 +38,6 @@ Detailed guides for every gstack skill — philosophy, workflow, and examples.
 | [`/unfreeze`](#safety--guardrails) | **Unlock** | Remove the /freeze boundary, allowing edits everywhere again. |
 | [`/open-gstack-browser`](#open-gstack-browser) | **GStack Browser** | Launch GStack Browser with sidebar, anti-bot stealth, auto model routing, cookie import, and Claude Code integration. Watch every action live. |
 | [`/setup-deploy`](#setup-deploy) | **Deploy Configurator** | One-time setup for `/land-and-deploy`. Detects your platform, production URL, and deploy commands. |
-| [`/gstack-upgrade`](#gstack-upgrade) | **Self-Updater** | Upgrade gstack to the latest version. Detects global vs vendored install, syncs both, shows what changed. |
 
 ---
 
@@ -1080,12 +1079,10 @@ Remove the `/freeze` boundary, allowing edits everywhere again. The hooks stay r
 
 ---
 
-## `/gstack-upgrade`
 
 Keep gstack current with one command. It detects your install type (global at `~/.claude/skills/gstack` vs vendored in your project at `.claude/skills/gstack`), runs the upgrade, syncs both copies if you have dual installs, and shows you what changed.
 
 ```
-You:   /gstack-upgrade
 
 Claude: Current version: 0.7.4
         Latest version: 0.8.2
@@ -1106,7 +1103,6 @@ Set `auto_upgrade: true` in `~/.gstack/config.yaml` to skip the prompt entirely 
 
 ## Greptile integration
 
-[Greptile](https://greptile.com) is a YC company that reviews your PRs automatically. It catches real bugs — race conditions, security issues, things that pass CI and blow up in production. It has genuinely saved my ass more than once. I love these guys.
 
 ### Setup
 

@@ -138,6 +138,6 @@ describe('welcome page served via HTTP', () => {
 
   test('has footer with attribution', () => {
     expect(html).toContain('Garry Tan');
-    expect(html).toContain('github.com/garrytan/gstack');
+    expect(html).toContain('github.com/jason-curtis/gstack');
   });
 });
