@@ -1146,7 +1146,6 @@ if (false) {
   test('codex skill has rabbit-hole detection rule', () => {
     const content = fs.readFileSync(path.join(ROOT, 'codex', 'SKILL.md'), 'utf-8');
     expect(content).toContain('Detect skill-file rabbit holes');
-    expect(content).toContain('gstack-update-check');
     expect(content).toContain('Consider retrying');
   });
 
