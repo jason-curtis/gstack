@@ -18,7 +18,6 @@ import { handleReadCommand } from './read-commands';
 import { handleWriteCommand } from './write-commands';
 import { handleMetaCommand } from './meta-commands';
 import { handleCookiePickerRoute } from './cookie-picker-routes';
-import { sanitizeExtensionUrl } from './sidebar-utils';
 import { COMMAND_DESCRIPTIONS, PAGE_CONTENT_COMMANDS, wrapUntrustedContent } from './commands';
 import {
   wrapUntrustedPageContent, datamarkContent,
@@ -34,14 +33,12 @@ import {
 } from './token-registry';
 import { validateTempPath } from './path-security';
 import { resolveConfig, ensureStateDir, readVersionHash } from './config';
-import { emitActivity, subscribe, getActivityAfter, getActivityHistory, getSubscriberCount } from './activity';
 import { initAuditLog, writeAuditEntry } from './audit';
 import { inspectElement, modifyStyle, resetModifications, getModificationHistory, detachSession, type InspectorResult } from './cdp-inspector';
 // Bun.spawn used instead of child_process.spawn (compiled bun binaries
 // fail posix_spawn on all executables including /bin/bash)
 import { safeUnlink, safeUnlinkQuiet, safeKill } from './error-handling';
 import * as fs from 'fs';
-import * as net from 'net';
 import * as path from 'path';
 import * as crypto from 'crypto';
 
@@ -55,7 +52,6 @@ const AUTH_TOKEN = crypto.randomUUID();
 initRegistry(AUTH_TOKEN);
 const BROWSE_PORT = parseInt(process.env.BROWSE_PORT || '0', 10);
 const IDLE_TIMEOUT_MS = parseInt(process.env.BROWSE_IDLE_TIMEOUT || '1800000', 10); // 30 min
-// Sidebar chat is always enabled in headed mode (ungated in v0.12.0)
 
 // ─── Tunnel State ───────────────────────────────────────────────
 let tunnelActive = false;
@@ -161,89 +157,32 @@ const CONSOLE_LOG_PATH = config.consoleLog;
 const NETWORK_LOG_PATH = config.networkLog;
 const DIALOG_LOG_PATH = config.dialogLog;
 
-// ─── Sidebar Agent (integrated — no separate process) ─────────────
-
-interface ChatEntry {
-  id: number;
-  ts: string;
-  role: 'user' | 'assistant' | 'agent';
-  message?: string;
-  type?: string;
-  tool?: string;
-  input?: string;
-  text?: string;
-  error?: string;
-}
-
-interface SidebarSession {
-  id: string;
-  name: string;
-  claudeSessionId: string | null;
-  worktreePath: string | null;
-  createdAt: string;
-  lastActiveAt: string;
-}
-
-const SESSIONS_DIR = path.join(process.env.HOME || '/tmp', '.gstack', 'sidebar-sessions');
-const AGENT_TIMEOUT_MS = 300_000; // 5 minutes — multi-page tasks need time
+// Stubs for removed sidebar/activity modules
+function emitActivity(_event: any): void {}
+function subscribe(_cb: any): () => void { return () => {}; }
+function getActivityAfter(_ts: number): any[] { return []; }
+function getActivityHistory(): any[] { return []; }
+function getSubscriberCount(): number { return 0; }
+const BROWSE_BIN = 'browse';
+interface ChatEntry { id: number; ts: string; role: string; [k: string]: any; }
+interface SidebarSession { id: string; [k: string]: any; }
+const SESSIONS_DIR = '';
+const AGENT_TIMEOUT_MS = 300_000;
 const MAX_QUEUE = 5;
-
 let sidebarSession: SidebarSession | null = null;
-// Per-tab agent state — each tab gets its own agent subprocess
-interface TabAgentState {
-  status: 'idle' | 'processing' | 'hung';
-  startTime: number | null;
-  currentMessage: string | null;
-  queue: Array<{message: string, ts: string, extensionUrl?: string | null}>;
-}
-const tabAgents = new Map<number, TabAgentState>();
-// Legacy globals kept for backward compat with health check and kill
-let agentProcess: ChildProcess | null = null;
-let agentStatus: 'idle' | 'processing' | 'hung' = 'idle';
+let agentProcess: any = null;
+let agentStatus: string = 'idle';
 let agentStartTime: number | null = null;
-let messageQueue: Array<{message: string, ts: string, extensionUrl?: string | null}> = [];
+let messageQueue: any[] = [];
 let currentMessage: string | null = null;
-// Per-tab chat buffers — each browser tab gets its own conversation
-const chatBuffers = new Map<number, ChatEntry[]>(); // tabId -> entries
+const chatBuffers = new Map<number, ChatEntry[]>();
 let chatNextId = 0;
-let agentTabId: number | null = null; // which tab the current agent is working on
-
-function getTabAgent(tabId: number): TabAgentState {
-  if (!tabAgents.has(tabId)) {
-    tabAgents.set(tabId, { status: 'idle', startTime: null, currentMessage: null, queue: [] });
-  }
-  return tabAgents.get(tabId)!;
-}
-
-function getTabAgentStatus(tabId: number): 'idle' | 'processing' | 'hung' {
-  return tabAgents.has(tabId) ? tabAgents.get(tabId)!.status : 'idle';
-}
-
-function getChatBuffer(tabId?: number): ChatEntry[] {
-  const id = tabId ?? browserManager?.getActiveTabId?.() ?? 0;
-  if (!chatBuffers.has(id)) chatBuffers.set(id, []);
-  return chatBuffers.get(id)!;
-}
-
-// Legacy single-buffer alias for session load/clear
+let agentTabId: number | null = null;
+const tabAgents = new Map<number, any>();
 let chatBuffer: ChatEntry[] = [];
-
-// Find the browse binary for the claude subprocess system prompt
-function findBrowseBin(): string {
-  const candidates = [
-    path.resolve(__dirname, '..', 'dist', 'browse'),
-    path.resolve(__dirname, '..', '..', '.claude', 'skills', 'gstack', 'browse', 'dist', 'browse'),
-    path.join(process.env.HOME || '', '.claude', 'skills', 'gstack', 'browse', 'dist', 'browse'),
-  ];
-  for (const c of candidates) {
-    try { if (fs.existsSync(c)) return c; } catch (err: any) {
-      if (err?.code !== 'ENOENT') throw err;
-    }
-  }
-  return 'browse'; // fallback to PATH
-}
-
-const BROWSE_BIN = findBrowseBin();
+function getChatBuffer(_tabId?: number): ChatEntry[] { return []; }
+function getTabAgent(_tabId: number): any { return { status: 'idle', startTime: null, currentMessage: null, queue: [] }; }
+function getTabAgentStatus(_tabId: number): string { return 'idle'; }
 
 function findClaudeBin(): string | null {
   const home = process.env.HOME || '';

@@ -8,7 +8,7 @@
 import type { TabSession } from './tab-session';
 import type { BrowserManager } from './browser-manager';
 import { consoleBuffer, networkBuffer, dialogBuffer } from './buffers';
-import type { Page, Frame } from 'playwright';
+import type { Page } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
 import { TEMP_DIR } from './platform';

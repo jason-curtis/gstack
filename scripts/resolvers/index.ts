@@ -9,10 +9,10 @@ import type { TemplateContext, ResolverFn } from './types';
 import { generatePreamble } from './preamble';
 import { generateTestFailureTriage } from './preamble';
 import { generateCommandReference, generateSnapshotFlags, generateBrowseSetup } from './browse';
-import { generateDesignMethodology, generateDesignHardRules, generateDesignOutsideVoices, generateDesignReviewLite, generateDesignSketch, generateDesignSetup, generateDesignMockup, generateDesignShotgunLoop, generateUXPrinciples } from './design';
+import { generateDesignMethodology, generateDesignHardRules, generateDesignOutsideVoices, generateDesignReviewLite, generateDesignSketch, generateUXPrinciples } from './design';
 import { generateTestBootstrap, generateTestCoverageAuditPlan, generateTestCoverageAuditShip, generateTestCoverageAuditReview } from './testing';
 import { generateReviewDashboard, generatePlanFileReviewReport, generateSpecReviewLoop, generateBenefitsFrom, generateCodexSecondOpinion, generateAdversarialStep, generateCodexPlanReview, generatePlanCompletionAuditShip, generatePlanCompletionAuditReview, generatePlanVerificationExec, generateScopeDrift, generateCrossReviewDedup } from './review';
-import { generateSlugEval, generateSlugSetup, generateBaseBranchDetect, generateDeployBootstrap, generateQAMethodology, generateCoAuthorTrailer, generateChangelogWorkflow } from './utility';
+import { generateSlugEval, generateSlugSetup, generateBaseBranchDetect, generateDeployBootstrap, generateQAMethodology, generateChangelogWorkflow } from './utility';
 import { generateLearningsSearch, generateLearningsLog } from './learnings';
 import { generateConfidenceCalibration } from './confidence';
 import { generateInvokeSkill } from './composition';
@@ -42,9 +42,6 @@ export const RESOLVERS: Record<string, ResolverFn> = {
   TEST_FAILURE_TRIAGE: generateTestFailureTriage,
   SPEC_REVIEW_LOOP: generateSpecReviewLoop,
   DESIGN_SKETCH: generateDesignSketch,
-  DESIGN_SETUP: generateDesignSetup,
-  DESIGN_MOCKUP: generateDesignMockup,
-  DESIGN_SHOTGUN_LOOP: generateDesignShotgunLoop,
   BENEFITS_FROM: generateBenefitsFrom,
   CODEX_SECOND_OPINION: generateCodexSecondOpinion,
   ADVERSARIAL_STEP: generateAdversarialStep,
@@ -54,7 +51,6 @@ export const RESOLVERS: Record<string, ResolverFn> = {
   PLAN_COMPLETION_AUDIT_SHIP: generatePlanCompletionAuditShip,
   PLAN_COMPLETION_AUDIT_REVIEW: generatePlanCompletionAuditReview,
   PLAN_VERIFICATION_EXEC: generatePlanVerificationExec,
-  CO_AUTHOR_TRAILER: generateCoAuthorTrailer,
   LEARNINGS_SEARCH: generateLearningsSearch,
   LEARNINGS_LOG: generateLearningsLog,
   CONFIDENCE_CALIBRATION: generateConfidenceCalibration,

@@ -21,7 +21,6 @@ git remote get-url origin 2>/dev/null
 - If the URL contains "gitlab" → platform is **GitLab**
 - Otherwise, check CLI availability:
   - \`gh auth status 2>/dev/null\` succeeds → platform is **GitHub** (covers GitHub Enterprise)
-  - \`glab auth status 2>/dev/null\` succeeds → platform is **GitLab** (covers self-hosted)
   - Neither → **unknown** (use git-native commands only)
 
 Determine which branch this PR/MR targets, or the repo's default branch if no
@@ -30,10 +29,6 @@ PR/MR exists. Use the result as "the base branch" in all subsequent steps.
 **If GitHub:**
 1. \`gh pr view --json baseRefName -q .baseRefName\` — if succeeds, use it
 2. \`gh repo view --json defaultBranchRef -q .defaultBranchRef.name\` — if succeeds, use it
-
-**If GitLab:**
-1. \`glab mr view -F json 2>/dev/null\` and extract the \`target_branch\` field — if succeeds, use it
-2. \`glab repo view -F json 2>/dev/null\` and extract the \`default_branch\` field — if succeeds, use it
 
 **Git-native fallback (if unknown platform, or CLI commands fail):**
 1. \`git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'\`
@@ -364,12 +359,6 @@ Minimum 0 per category.
 10. **Use \`snapshot -C\` for tricky UIs.** Finds clickable divs that the accessibility tree misses.
 11. **Show screenshots to the user.** After every \`$B screenshot\`, \`$B snapshot -a -o\`, or \`$B responsive\` command, use the Read tool on the output file(s) so the user can see them inline. For \`responsive\` (3 files), Read all three. This is critical — without it, screenshots are invisible to the user.
 12. **Never refuse to use the browser.** When the user invokes /qa or /qa-only, they are requesting browser-based testing. Never suggest evals, unit tests, or other alternatives as a substitute. Even if the diff appears to have no UI changes, backend changes affect app behavior — always open the browser and test.`;
-}
-
-export function generateCoAuthorTrailer(ctx: TemplateContext): string {
-  const { getHostConfig } = require('../../hosts/index');
-  const hostConfig = getHostConfig(ctx.host);
-  return hostConfig.coAuthorTrailer || 'Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>';
 }
 
 export function generateChangelogWorkflow(_ctx: TemplateContext): string {

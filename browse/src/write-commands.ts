@@ -133,13 +133,10 @@ export async function handleWriteCommand(
   bm: BrowserManager
 ): Promise<string> {
   const page = session.getPage();
-  // Frame-aware target for locator-based operations (click, fill, etc.)
-  const target = session.getActiveFrameOrPage();
-  const inFrame = session.getFrame() !== null;
+  const target = page;
 
   switch (command) {
     case 'goto': {
-      if (inFrame) throw new Error('Cannot use goto inside a frame. Run \'frame main\' first.');
       const url = args[0];
       if (!url) throw new Error('Usage: browse goto <url>');
       await validateNavigationUrl(url);
@@ -149,19 +146,16 @@ export async function handleWriteCommand(
     }
 
     case 'back': {
-      if (inFrame) throw new Error('Cannot use back inside a frame. Run \'frame main\' first.');
       await page.goBack({ waitUntil: 'domcontentloaded', timeout: 15000 });
       return `Back → ${page.url()}`;
     }
 
     case 'forward': {
-      if (inFrame) throw new Error('Cannot use forward inside a frame. Run \'frame main\' first.');
       await page.goForward({ waitUntil: 'domcontentloaded', timeout: 15000 });
       return `Forward → ${page.url()}`;
     }
 
     case 'reload': {
-      if (inFrame) throw new Error('Cannot use reload inside a frame. Run \'frame main\' first.');
       await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
       return `Reloaded ${page.url()}`;
     }

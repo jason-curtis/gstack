@@ -15,7 +15,6 @@
 import type { TemplateContext } from './types';
 import { generateInvokeSkill } from './composition';
 
-const CODEX_BOUNDARY = 'IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.\\n\\n';
 
 export function generateReviewDashboard(_ctx: TemplateContext): string {
   return `## Review Readiness Dashboard
@@ -245,7 +244,6 @@ ${invokeBlock}
 
 After /${first} completes, re-run the design doc check:
 \`\`\`bash
-setopt +o nomatch 2>/dev/null || true  # zsh compat
 SLUG=$(~/.claude/skills/gstack/browse/bin/remote-slug 2>/dev/null || basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo 'no-branch')
 DESIGN=$(ls -t ~/.gstack/projects/$SLUG/*-$BRANCH-design-*.md 2>/dev/null | head -1)
@@ -293,9 +291,7 @@ If B: skip Phase 3.5 entirely. Remember that the second opinion did NOT run (aff
 CODEX_PROMPT_FILE=$(mktemp /tmp/gstack-codex-oh-XXXXXXXX.txt)
 \`\`\`
 
-Write the full prompt to this file. **Always start with the filesystem boundary:**
-"${CODEX_BOUNDARY}"
-Then add the context block and mode-appropriate instructions:
+Write the full prompt to this file, then add the context block and mode-appropriate instructions:
 
 **Startup mode instructions:** "You are an independent technical advisor reading a transcript of a startup brainstorming session. [CONTEXT BLOCK HERE]. Your job: 1) What is the STRONGEST version of what this person is trying to build? Steelman it in 2-3 sentences. 2) What is the ONE thing from their answers that reveals the most about what they should actually build? Quote it and explain why. 3) Name ONE agreed premise you think is wrong, and what evidence would prove you right. 4) If you had 48 hours and one engineer to build a prototype, what would you build? Be specific — tech stack, features, what you'd skip. Be direct. Be terse. No preamble."
 
@@ -305,8 +301,7 @@ Then add the context block and mode-appropriate instructions:
 
 \`\`\`bash
 TMPERR_OH=$(mktemp /tmp/codex-oh-err-XXXXXXXX)
-_REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-codex exec "$(cat "$CODEX_PROMPT_FILE")" -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached 2>"$TMPERR_OH"
+codex exec "$(cat "$CODEX_PROMPT_FILE")" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached 2>"$TMPERR_OH"
 \`\`\`
 
 Use a 5-minute timeout (\`timeout: 300000\`). After the command completes, read stderr:
@@ -457,8 +452,7 @@ If Codex is available AND \`OLD_CFG\` is NOT \`disabled\`:
 
 \`\`\`bash
 TMPERR_ADV=$(mktemp /tmp/codex-adv-XXXXXXXX)
-_REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-codex exec "${CODEX_BOUNDARY}Review the changes on this branch against the base branch. Run git diff origin/<base> to see the diff. Your job is to find ways this code will fail in production. Think like an attacker and a chaos engineer. Find edge cases, race conditions, security holes, resource leaks, failure modes, and silent data corruption paths. Be adversarial. Be thorough. No compliments — just the problems." -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached 2>"$TMPERR_ADV"
+codex exec "Review the changes on this branch against the base branch. Run git diff origin/<base> to see the diff. Your job is to find ways this code will fail in production. Think like an attacker and a chaos engineer. Find edge cases, race conditions, security holes, resource leaks, failure modes, and silent data corruption paths. Be adversarial. Be thorough. No compliments — just the problems." -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached 2>"$TMPERR_ADV"
 \`\`\`
 
 Set the Bash tool's \`timeout\` parameter to \`300000\` (5 minutes). Do NOT use the \`timeout\` shell command — it doesn't exist on macOS. After the command completes, read stderr:
@@ -485,9 +479,7 @@ If \`DIFF_TOTAL >= 200\` AND Codex is available AND \`OLD_CFG\` is NOT \`disable
 
 \`\`\`bash
 TMPERR=$(mktemp /tmp/codex-review-XXXXXXXX)
-_REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-cd "$_REPO_ROOT"
-codex review "${CODEX_BOUNDARY}Review the diff against the base branch." --base <base> -c 'model_reasoning_effort="high"' --enable web_search_cached 2>"$TMPERR"
+codex review "Review the diff against the base branch." --base <base> -c 'model_reasoning_effort="high"' --enable web_search_cached 2>"$TMPERR"
 \`\`\`
 
 Set the Bash tool's \`timeout\` parameter to \`300000\` (5 minutes). Do NOT use the \`timeout\` shell command — it doesn't exist on macOS. Present output under \`CODEX SAYS (code review):\` header.
@@ -582,7 +574,7 @@ Construct this prompt (substitute the actual plan content — if plan content ex
 truncate to the first 30KB and note "Plan truncated for size"). **Always start with the
 filesystem boundary instruction:**
 
-"${CODEX_BOUNDARY}You are a brutally honest technical reviewer examining a development plan that has
+"You are a brutally honest technical reviewer examining a development plan that has
 already been through a multi-section review. Your job is NOT to repeat that review.
 Instead, find what it missed. Look for: logical gaps and unstated assumptions that
 survived the review scrutiny, overcomplexity (is there a fundamentally simpler
@@ -598,8 +590,7 @@ THE PLAN:
 
 \`\`\`bash
 TMPERR_PV=$(mktemp /tmp/codex-planreview-XXXXXXXX)
-_REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-codex exec "<prompt>" -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached 2>"$TMPERR_PV"
+codex exec "<prompt>" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached 2>"$TMPERR_PV"
 \`\`\`
 
 Use a 5-minute timeout (\`timeout: 300000\`). After the command completes, read stderr:
@@ -692,7 +683,6 @@ function generatePlanFileDiscovery(): string {
 2. **Content-based search (fallback):** If no plan file is referenced in conversation context, search by content:
 
 \`\`\`bash
-setopt +o nomatch 2>/dev/null || true  # zsh compat
 BRANCH=$(git branch --show-current 2>/dev/null | tr '/' '-')
 REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)")
 # Compute project slug for ~/.gstack/projects/ lookup

@@ -35,11 +35,6 @@ export const META_COMMANDS = new Set([
   'chain', 'diff',
   'url', 'snapshot',
   'handoff', 'resume',
-  'connect', 'disconnect', 'focus',
-  'inbox',
-  'watch',
-  'state',
-  'frame',
   'ux-audit',
 ]);
 

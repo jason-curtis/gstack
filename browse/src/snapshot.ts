@@ -17,7 +17,7 @@
  * Later: "click @e3" → look up Locator → locator.click()
  */
 
-import type { Page, Frame, Locator } from 'playwright';
+import type { Page, Locator } from 'playwright';
 import type { TabSession, RefEntry } from './tab-session';
 import * as Diff from 'diff';
 import { TEMP_DIR, isPathWithin } from './platform';
@@ -139,9 +139,7 @@ export async function handleSnapshot(
 ): Promise<string> {
   const opts = parseSnapshotArgs(args);
   const page = session.getPage();
-  // Frame-aware target for accessibility tree
-  const target = session.getActiveFrameOrPage();
-  const inFrame = session.getFrame() !== null;
+  const target = page;
 
   // Get accessibility tree via ariaSnapshot
   let rootLocator: Locator;
@@ -580,12 +578,6 @@ export async function handleSnapshot(
 
   // Store for future diffs
   session.setLastSnapshot(snapshotText);
-
-  // Add frame context header when operating inside an iframe
-  if (inFrame) {
-    const frameUrl = session.getFrame()?.url() ?? 'unknown';
-    output.unshift(`[Context: iframe src="${frameUrl}"]`);
-  }
 
   // Split output for scoped tokens: trusted refs + untrusted text
   if (securityOpts?.splitForScoped) {
