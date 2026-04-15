@@ -1,0 +1,88 @@
+name: Fork Sync
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6am UTC
+  workflow_dispatch:       # Manual trigger
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Configure git
+        run: |
+          git config user.name "fork-sync[bot]"
+          git config user.email "fork-sync[bot]@users.noreply.github.com"
+
+      - name: Merge upstream
+        id: merge
+        run: |
+          git remote add upstream https://github.com/garrytan/gstack.git || true
+          git fetch upstream main
+
+          UPSTREAM_SHA=$(git rev-parse upstream/main)
+
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "Already up to date with upstream ($UPSTREAM_SHA)"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "upstream_sha=$UPSTREAM_SHA" >> "$GITHUB_OUTPUT"
+
+          if git merge upstream/main --no-edit; then
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+            git merge --abort
+          fi
+
+      - name: Regenerate skill docs
+        if: steps.merge.outputs.changed == 'true' && steps.merge.outputs.conflict != 'true'
+        run: |
+          bun install
+          bun run gen:skill-docs --host all
+
+      - name: Verify no telemetry leaked
+        if: steps.merge.outputs.changed == 'true' && steps.merge.outputs.conflict != 'true'
+        run: |
+          FAIL=0
+          for pattern in gstack-telemetry telemetry-ingest gstack-analytics gstack-update-check; do
+            matches=$(grep -rl "$pattern" --include='*.ts' --include='*.md' --include='*.tmpl' . \
+              | grep -v node_modules | grep -v CHANGELOG || true)
+            if [ -n "$matches" ]; then
+              echo "FAIL: '$pattern' found in: $matches"
+              FAIL=1
+            fi
+          done
+          [ $FAIL -eq 0 ] || exit 1
+
+      - name: Create sync PR
+        if: steps.merge.outputs.changed == 'true' && steps.merge.outputs.conflict != 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "sync: upstream garrytan/gstack"
+          body: |
+            Automated upstream merge via `git merge`.
+
+            **Upstream SHA:** `${{ steps.merge.outputs.upstream_sha }}`
+          branch: fork-sync/latest
+          delete-branch: true
+          commit-message: "sync: upstream garrytan/gstack (${{ steps.merge.outputs.upstream_sha }})"
+
+      - name: Report conflict
+        if: steps.merge.outputs.conflict == 'true'
+        run: |
+          echo "::error::Merge conflict with upstream. Manual resolution needed."
+          echo "Run locally: git fetch upstream && git merge upstream/main"
+          exit 1
