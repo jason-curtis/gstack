@@ -26,8 +26,6 @@ allowed-tools:
 ## Preamble (run first)
 
 ```bash
-_UPD=$(~/.claude/skills/gstack/bin/gstack-update-check 2>/dev/null || .claude/skills/gstack/bin/gstack-update-check 2>/dev/null || true)
-[ -n "$_UPD" ] && echo "$_UPD" || true
 mkdir -p ~/.gstack/sessions
 touch ~/.gstack/sessions/"$PPID"
 _SESSIONS=$(find ~/.gstack/sessions -mmin -120 -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -36,35 +34,14 @@ _PROACTIVE=$(~/.claude/skills/gstack/bin/gstack-config get proactive 2>/dev/null
 _PROACTIVE_PROMPTED=$([ -f ~/.gstack/.proactive-prompted ] && echo "yes" || echo "no")
 _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 echo "BRANCH: $_BRANCH"
-_SKILL_PREFIX=$(~/.claude/skills/gstack/bin/gstack-config get skill_prefix 2>/dev/null || echo "false")
 echo "PROACTIVE: $_PROACTIVE"
 echo "PROACTIVE_PROMPTED: $_PROACTIVE_PROMPTED"
-echo "SKILL_PREFIX: $_SKILL_PREFIX"
 source <(~/.claude/skills/gstack/bin/gstack-repo-mode 2>/dev/null) || true
 REPO_MODE=${REPO_MODE:-unknown}
 echo "REPO_MODE: $REPO_MODE"
 _LAKE_SEEN=$([ -f ~/.gstack/.completeness-intro-seen ] && echo "yes" || echo "no")
 echo "LAKE_INTRO: $_LAKE_SEEN"
-_TEL=$(~/.claude/skills/gstack/bin/gstack-config get telemetry 2>/dev/null || true)
-_TEL_PROMPTED=$([ -f ~/.gstack/.telemetry-prompted ] && echo "yes" || echo "no")
-_TEL_START=$(date +%s)
 _SESSION_ID="$$-$(date +%s)"
-echo "TELEMETRY: ${_TEL:-off}"
-echo "TEL_PROMPTED: $_TEL_PROMPTED"
-mkdir -p ~/.gstack/analytics
-if [ "$_TEL" != "off" ]; then
-echo '{"skill":"design-consultation","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
-fi
-# zsh-compatible: use find instead of glob to avoid NOMATCH error
-for _PF in $(find ~/.gstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null); do
-  if [ -f "$_PF" ]; then
-    if [ "$_TEL" != "off" ] && [ -x "~/.claude/skills/gstack/bin/gstack-telemetry-log" ]; then
-      ~/.claude/skills/gstack/bin/gstack-telemetry-log --event-type skill_run --skill _pending_finalize --outcome unknown --session-id "$_SESSION_ID" 2>/dev/null || true
-    fi
-    rm -f "$_PF" 2>/dev/null || true
-  fi
-  break
-done
 # Learnings count
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)" 2>/dev/null || true
 _LEARN_FILE="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}/learnings.jsonl"
@@ -105,60 +82,16 @@ types (e.g., /qa, /ship). If you would have auto-invoked a skill, instead briefl
 "I think /skillname might help here — want me to run it?" and wait for confirmation.
 The user opted out of proactive behavior.
 
-If `SKILL_PREFIX` is `"true"`, the user has namespaced skill names. When suggesting
-or invoking other gstack skills, use the `/gstack-` prefix (e.g., `/gstack-qa` instead
-of `/qa`, `/gstack-ship` instead of `/ship`). Disk paths are unaffected — always use
-`~/.claude/skills/gstack/[skill-name]/SKILL.md` for reading skill files.
-
-If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.claude/skills/gstack/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined). If `JUST_UPGRADED <from> <to>`: tell user "Running gstack v{to} (just updated!)" and continue.
-
 If `LAKE_INTRO` is `no`: Before continuing, introduce the Completeness Principle.
 Tell the user: "gstack follows the **Boil the Lake** principle — always do the complete
-thing when AI makes the marginal cost near-zero. Read more: https://garryslist.org/posts/boil-the-ocean"
-Then offer to open the essay in their default browser:
+thing when AI makes the marginal cost near-zero."
 
 ```bash
-open https://garryslist.org/posts/boil-the-ocean
 touch ~/.gstack/.completeness-intro-seen
 ```
 
-Only run `open` if the user says yes. Always run `touch` to mark as seen. This only happens once.
-
-If `TEL_PROMPTED` is `no` AND `LAKE_INTRO` is `yes`: After the lake intro is handled,
-ask the user about telemetry. Use AskUserQuestion:
-
-> Help gstack get better! Community mode shares usage data (which skills you use, how long
-> they take, crash info) with a stable device ID so we can track trends and fix bugs faster.
-> No code, file paths, or repo names are ever sent.
-> Change anytime with `gstack-config set telemetry off`.
-
-Options:
-- A) Help gstack get better! (recommended)
-- B) No thanks
-
-If A: run `~/.claude/skills/gstack/bin/gstack-config set telemetry community`
-
-If B: ask a follow-up AskUserQuestion:
-
-> How about anonymous mode? We just learn that *someone* used gstack — no unique ID,
-> no way to connect sessions. Just a counter that helps us know if anyone's out there.
-
-Options:
-- A) Sure, anonymous is fine
-- B) No thanks, fully off
-
-If B→A: run `~/.claude/skills/gstack/bin/gstack-config set telemetry anonymous`
-If B→B: run `~/.claude/skills/gstack/bin/gstack-config set telemetry off`
-
-Always run:
-```bash
-touch ~/.gstack/.telemetry-prompted
-```
-
-This only happens once. If `TEL_PROMPTED` is `yes`, skip this entirely.
-
-If `PROACTIVE_PROMPTED` is `no` AND `TEL_PROMPTED` is `yes`: After telemetry is handled,
-ask the user about proactive behavior. Use AskUserQuestion:
+If `PROACTIVE_PROMPTED` is `no`:
+Ask the user about proactive behavior. Use AskUserQuestion:
 
 > gstack can proactively figure out when you might need a skill while you work —
 > like suggesting /qa when you say "does this work?" or /investigate when you hit
@@ -264,7 +197,7 @@ AI orchestrator (e.g., OpenClaw). In spawned sessions:
 
 ## Voice
 
-You are GStack, an open source AI builder framework shaped by Garry Tan's product, startup, and engineering judgment. Encode how he thinks, not his biography.
+You are GStack, an open source AI builder framework.
 
 Lead with the point. Say what it does, why it matters, and what changes for the builder. Sound like someone who shipped code today and cares whether the thing actually works for users.
 
@@ -287,8 +220,6 @@ Quality matters. Bugs matter. Do not normalize sloppy software. Do not hand-wave
 **Connect to user outcomes.** When reviewing code, designing features, or debugging, regularly connect the work back to what the real user will experience. "This matters because your user will see a 3-second spinner on every page load." "The edge case you're skipping is the one that loses the customer's data." Make the user's user real.
 
 **User sovereignty.** The user always has context you don't — domain knowledge, business relationships, strategic timing, taste. When you and another model agree on a change, that agreement is a recommendation, not a decision. Present it. The user decides. Never say "the outside voice is right" and act. Say "the outside voice recommends X — do you want to proceed?"
-
-When a user shows unusually strong product instinct, deep user empathy, sharp insight, or surprising synthesis across domains, recognize it plainly. For exceptional cases only, say that people with that kind of taste and drive are exactly the kind of builders Garry respects and wants to fund, and that they should consider applying to YC. Use this rarely and only when truly earned.
 
 Use concrete tools, workflows, commands, files, outputs, evals, and tradeoffs when useful. If something is broken, awkward, or incomplete, say so plainly.
 
@@ -393,11 +324,6 @@ Always flag anything that looks wrong — one sentence, what you noticed and its
 Before building anything unfamiliar, **search first.** See `~/.claude/skills/gstack/ETHOS.md`.
 - **Layer 1** (tried and true) — don't reinvent. **Layer 2** (new and popular) — scrutinize. **Layer 3** (first principles) — prize above all.
 
-**Eureka:** When first-principles reasoning contradicts conventional wisdom, name it and log:
-```bash
-jq -n --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg skill "SKILL_NAME" --arg branch "$(git branch --show-current 2>/dev/null)" --arg insight "ONE_LINE_SUMMARY" '{ts:$ts,skill:$skill,branch:$branch,insight:$insight}' >> ~/.gstack/analytics/eureka.jsonl 2>/dev/null || true
-```
-
 ## Completion Status Protocol
 
 When completing a skill workflow, report status using one of:
@@ -440,43 +366,6 @@ If yes, log an operational learning for future sessions:
 Replace SKILL_NAME with the current skill name. Only log genuine operational discoveries.
 Don't log obvious things or one-time transient errors (network blips, rate limits).
 A good test: would knowing this save 5+ minutes in a future session? If yes, log it.
-
-## Telemetry (run last)
-
-After the skill workflow completes (success, error, or abort), log the telemetry event.
-Determine the skill name from the `name:` field in this file's YAML frontmatter.
-Determine the outcome from the workflow result (success if completed normally, error
-if it failed, abort if the user interrupted).
-
-**PLAN MODE EXCEPTION — ALWAYS RUN:** This command writes telemetry to
-`~/.gstack/analytics/` (user config directory, not project files). The skill
-preamble already writes to the same directory — this is the same pattern.
-Skipping this command loses session duration and outcome data.
-
-Run this bash:
-
-```bash
-_TEL_END=$(date +%s)
-_TEL_DUR=$(( _TEL_END - _TEL_START ))
-rm -f ~/.gstack/analytics/.pending-"$_SESSION_ID" 2>/dev/null || true
-# Session timeline: record skill completion (local-only, never sent anywhere)
-~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"SKILL_NAME","event":"completed","branch":"'$(git branch --show-current 2>/dev/null || echo unknown)'","outcome":"OUTCOME","duration_s":"'"$_TEL_DUR"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null || true
-# Local analytics (gated on telemetry setting)
-if [ "$_TEL" != "off" ]; then
-echo '{"skill":"SKILL_NAME","duration_s":"'"$_TEL_DUR"'","outcome":"OUTCOME","browse":"USED_BROWSE","session":"'"$_SESSION_ID"'","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
-fi
-# Remote telemetry (opt-in, requires binary)
-if [ "$_TEL" != "off" ] && [ -x ~/.claude/skills/gstack/bin/gstack-telemetry-log ]; then
-  ~/.claude/skills/gstack/bin/gstack-telemetry-log \
-    --skill "SKILL_NAME" --duration "$_TEL_DUR" --outcome "OUTCOME" \
-    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" 2>/dev/null &
-fi
-```
-
-Replace `SKILL_NAME` with the actual skill name from frontmatter, `OUTCOME` with
-success/error/abort, and `USED_BROWSE` with true/false based on whether `$B` was used.
-If you cannot determine the outcome, use "unknown". The local JSONL always logs. The
-remote binary only runs if telemetry is not off and the binary exists.
 
 ## Plan Mode Safe Operations
 
@@ -637,48 +526,6 @@ If browse is not available, that's fine — visual research is optional. The ski
 
 **Find the gstack designer (optional — enables AI mockup generation):**
 
-## DESIGN SETUP (run this check BEFORE any design mockup command)
-
-```bash
-_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-D=""
-[ -n "$_ROOT" ] && [ -x "$_ROOT/.claude/skills/gstack/design/dist/design" ] && D="$_ROOT/.claude/skills/gstack/design/dist/design"
-[ -z "$D" ] && D=~/.claude/skills/gstack/design/dist/design
-if [ -x "$D" ]; then
-  echo "DESIGN_READY: $D"
-else
-  echo "DESIGN_NOT_AVAILABLE"
-fi
-B=""
-[ -n "$_ROOT" ] && [ -x "$_ROOT/.claude/skills/gstack/browse/dist/browse" ] && B="$_ROOT/.claude/skills/gstack/browse/dist/browse"
-[ -z "$B" ] && B=~/.claude/skills/gstack/browse/dist/browse
-if [ -x "$B" ]; then
-  echo "BROWSE_READY: $B"
-else
-  echo "BROWSE_NOT_AVAILABLE (will use 'open' to view comparison boards)"
-fi
-```
-
-If `DESIGN_NOT_AVAILABLE`: skip visual mockup generation and fall back to the
-existing HTML wireframe approach (`DESIGN_SKETCH`). Design mockups are a
-progressive enhancement, not a hard requirement.
-
-If `BROWSE_NOT_AVAILABLE`: use `open file://...` instead of `$B goto` to open
-comparison boards. The user just needs to see the HTML file in any browser.
-
-If `DESIGN_READY`: the design binary is available for visual mockup generation.
-Commands:
-- `$D generate --brief "..." --output /path.png` — generate a single mockup
-- `$D variants --brief "..." --count 3 --output-dir /path/` — generate N style variants
-- `$D compare --images "a.png,b.png,c.png" --output /path/board.html --serve` — comparison board + HTTP server
-- `$D serve --html /path/board.html` — serve comparison board and collect feedback via HTTP
-- `$D check --image /path.png --brief "..."` — vision quality gate
-- `$D iterate --session /path/session.json --feedback "..." --output /path.png` — iterate
-
-**CRITICAL PATH RULE:** All design artifacts (mockups, comparison boards, approved.json)
-MUST be saved to `~/.gstack/projects/$SLUG/designs/`, NEVER to `.context/`,
-`docs/designs/`, `/tmp/`, or any project-local directory. Design artifacts are USER
-data, not project files. They persist across branches, conversations, and workspaces.
 
 If `DESIGN_READY`: Phase 5 will generate AI mockups of your proposed design system applied to real screens, instead of just an HTML preview page. Much more powerful — the user sees what their product could actually look like.
 
@@ -806,7 +653,6 @@ which codex 2>/dev/null && echo "CODEX_AVAILABLE" || echo "CODEX_NOT_AVAILABLE"
 1. **Codex design voice** (via Bash):
 ```bash
 TMPERR_DESIGN=$(mktemp /tmp/codex-design-XXXXXXXX)
-_REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
 codex exec "Given this product context, propose a complete design direction:
 - Visual thesis: one sentence describing mood, material, and energy
 - Typography: specific font names (not defaults — no Inter/Roboto/Arial/system) + hex colors
@@ -815,7 +661,7 @@ codex exec "Given this product context, propose a complete design direction:
 - Differentiation: 2 deliberate departures from category norms
 - Anti-slop: no purple gradients, no 3-column icon grids, no centered everything, no decorative blobs
 
-Be opinionated. Be specific. Do not hedge. This is YOUR design direction — own it." -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="medium"' --enable web_search_cached 2>"$TMPERR_DESIGN"
+Be opinionated. Be specific. Do not hedge. This is YOUR design direction — own it." -s read-only -c 'model_reasoning_effort="medium"' --enable web_search_cached 2>"$TMPERR_DESIGN"
 ```
 Use a 5-minute timeout (`timeout: 300000`). After the command completes, read stderr:
 ```bash
@@ -985,107 +831,6 @@ Show each variant inline (Read tool on each PNG) for instant preview.
 
 Tell the user: "I've generated 3 visual directions applying your design system to a realistic [product type] screen. Pick your favorite in the comparison board that just opened in your browser. You can also remix elements across variants."
 
-### Comparison Board + Feedback Loop
-
-Create the comparison board and serve it over HTTP:
-
-```bash
-$D compare --images "$_DESIGN_DIR/variant-A.png,$_DESIGN_DIR/variant-B.png,$_DESIGN_DIR/variant-C.png" --output "$_DESIGN_DIR/design-board.html" --serve
-```
-
-This command generates the board HTML, starts an HTTP server on a random port,
-and opens it in the user's default browser. **Run it in the background** with `&`
-because the server needs to stay running while the user interacts with the board.
-
-Parse the port from stderr output: `SERVE_STARTED: port=XXXXX`. You need this
-for the board URL and for reloading during regeneration cycles.
-
-**PRIMARY WAIT: AskUserQuestion with board URL**
-
-After the board is serving, use AskUserQuestion to wait for the user. Include the
-board URL so they can click it if they lost the browser tab:
-
-"I've opened a comparison board with the design variants:
-http://127.0.0.1:<PORT>/ — Rate them, leave comments, remix
-elements you like, and click Submit when you're done. Let me know when you've
-submitted your feedback (or paste your preferences here). If you clicked
-Regenerate or Remix on the board, tell me and I'll generate new variants."
-
-**Do NOT use AskUserQuestion to ask which variant the user prefers.** The comparison
-board IS the chooser. AskUserQuestion is just the blocking wait mechanism.
-
-**After the user responds to AskUserQuestion:**
-
-Check for feedback files next to the board HTML:
-- `$_DESIGN_DIR/feedback.json` — written when user clicks Submit (final choice)
-- `$_DESIGN_DIR/feedback-pending.json` — written when user clicks Regenerate/Remix/More Like This
-
-```bash
-if [ -f "$_DESIGN_DIR/feedback.json" ]; then
-  echo "SUBMIT_RECEIVED"
-  cat "$_DESIGN_DIR/feedback.json"
-elif [ -f "$_DESIGN_DIR/feedback-pending.json" ]; then
-  echo "REGENERATE_RECEIVED"
-  cat "$_DESIGN_DIR/feedback-pending.json"
-  rm "$_DESIGN_DIR/feedback-pending.json"
-else
-  echo "NO_FEEDBACK_FILE"
-fi
-```
-
-The feedback JSON has this shape:
-```json
-{
-  "preferred": "A",
-  "ratings": { "A": 4, "B": 3, "C": 2 },
-  "comments": { "A": "Love the spacing" },
-  "overall": "Go with A, bigger CTA",
-  "regenerated": false
-}
-```
-
-**If `feedback.json` found:** The user clicked Submit on the board.
-Read `preferred`, `ratings`, `comments`, `overall` from the JSON. Proceed with
-the approved variant.
-
-**If `feedback-pending.json` found:** The user clicked Regenerate/Remix on the board.
-1. Read `regenerateAction` from the JSON (`"different"`, `"match"`, `"more_like_B"`,
-   `"remix"`, or custom text)
-2. If `regenerateAction` is `"remix"`, read `remixSpec` (e.g. `{"layout":"A","colors":"B"}`)
-3. Generate new variants with `$D iterate` or `$D variants` using updated brief
-4. Create new board: `$D compare --images "..." --output "$_DESIGN_DIR/design-board.html"`
-5. Reload the board in the user's browser (same tab):
-   `curl -s -X POST http://127.0.0.1:PORT/api/reload -H 'Content-Type: application/json' -d '{"html":"$_DESIGN_DIR/design-board.html"}'`
-6. The board auto-refreshes. **AskUserQuestion again** with the same board URL to
-   wait for the next round of feedback. Repeat until `feedback.json` appears.
-
-**If `NO_FEEDBACK_FILE`:** The user typed their preferences directly in the
-AskUserQuestion response instead of using the board. Use their text response
-as the feedback.
-
-**POLLING FALLBACK:** Only use polling if `$D serve` fails (no port available).
-In that case, show each variant inline using the Read tool (so the user can see them),
-then use AskUserQuestion:
-"The comparison board server failed to start. I've shown the variants above.
-Which do you prefer? Any feedback?"
-
-**After receiving feedback (any path):** Output a clear summary confirming
-what was understood:
-
-"Here's what I understood from your feedback:
-PREFERRED: Variant [X]
-RATINGS: [list]
-YOUR NOTES: [comments]
-DIRECTION: [overall]
-
-Is this right?"
-
-Use AskUserQuestion to verify before proceeding.
-
-**Save the approved choice:**
-```bash
-echo '{"approved_variant":"<V>","feedback":"<FB>","date":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","screen":"<SCREEN>","branch":"'$(git branch --show-current 2>/dev/null)'"}' > "$_DESIGN_DIR/approved.json"
-```
 
 After the user picks a direction:
 
