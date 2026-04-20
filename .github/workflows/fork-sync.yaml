@@ -1,0 +1,51 @@
+name: Fork Sync
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6am UTC
+  workflow_dispatch:       # Manual trigger
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "fork-sync[bot]"
+          git config user.email "fork-sync[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/garrytan/gstack.git || true
+          git fetch upstream main
+
+      - name: Check for upstream changes
+        id: check
+        run: |
+          UPSTREAM_SHA=$(git rev-parse upstream/main)
+          # Check if upstream/main is already an ancestor of HEAD (i.e., we're up to date)
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already up to date with upstream ($UPSTREAM_SHA)"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "upstream_sha=$UPSTREAM_SHA" >> "$GITHUB_OUTPUT"
+            echo "Upstream has new commits: $UPSTREAM_SHA"
+          fi
+
+      - name: Merge upstream
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          # Simple merge — our fork is upstream + a few small commits
+          git merge upstream/main --no-edit -m "sync: merge upstream garrytan/gstack (${{ steps.check.outputs.upstream_sha }})"
+
+      - name: Push
+        if: steps.check.outputs.changed == 'true'
+        run: git push origin main
