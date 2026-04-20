@@ -87,7 +87,7 @@ lookup_default() {
     codex_reviews) echo "enabled" ;;
     gstack_contributor) echo "false" ;;
     skip_eng_review) echo "false" ;;
-    yc_promo) echo "true" ;;
+    yc_promo) echo "false" ;;
     cross_project_learnings) echo "" ;; # intentionally empty → unset triggers first-time prompt
     *) echo "" ;;
   esac
