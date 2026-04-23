@@ -1,5 +1,71 @@
 # Changelog
 
+## [1.6.1.0] - 2026-04-22
+
+## **Opus 4.7 migration, reviewed. Overlay actually split per model. Routing verified, fanout is still on the list.**
+
+PR #1117 (initial Opus 4.7 migration) shipped the right idea with quality gaps. A `/plan-ceo-review` + `/plan-eng-review` pair with Codex outside voice surfaced 4 ship blockers and 7 quality gaps. This release lands the fixes and adds the first eval pinned to `claude-opus-4-7` so we stop asserting behavior without measuring it.
+
+### The numbers that matter
+
+Source: the `test/skill-e2e-opus-47.test.ts` eval, two cases, 8 assertions, ~$2.50 per full run on `claude-opus-4-7`. Runs are saved under `~/.gstack/projects/garrytan-gstack/evals/`. Review evidence in `~/.gstack/projects/garrytan-gstack/ceo-plans/2026-04-21-pr1117-opus-4-7-ship-review.md`.
+
+| Surface | Before (#1117 as-shipped) | After (v1.6.1.0) |
+|---|---|---|
+| `model-overlays/claude.md` | Opus-4.7-specific nudges applied to every `claude-*` variant | Split: `claude.md` is model-agnostic, `opus-4-7.md` inherits and adds 4.7 nudges |
+| `ALL_MODEL_NAMES` in `scripts/models.ts` | No `opus-4-7` taxonomy entry | Added; `claude-opus-4-7-*` routes to the new overlay |
+| `scripts/resolvers/utility.ts:372` trailer fallback | Hardcoded `Claude Opus 4.6` | Matches host config, Opus 4.7 default |
+| `generate-routing-injection.ts` policy | Old "ALWAYS invoke, do NOT answer directly" | Matches SKILL.md.tmpl "when in doubt, invoke" |
+| `generate-routing-injection.ts` skill names | Stale `/checkpoint` (renamed three releases ago) | `/context-save` + `/context-restore`, plus `/benchmark`, `/devex-review`, `/qa-only`, `/canary`, `/land-and-deploy`, `/setup-deploy`, `/open-gstack-browser`, `/setup-browser-cookies`, `/learn`, `/plan-tune`, `/health` |
+| Voice example closing | "Want me to ship it?" (trains ship-bypass on a literal 4.7 interpreter) | "Want me to fix it?" (preserves review gates) |
+| `"Fix ALL failing tests"` nudge scope | Unbounded, could touch pre-existing unrelated failures | Bounded to "tests this branch introduced or is responsible for" |
+| `"Batch your questions"` nudge | Silently conflicted with skills that mandate one-at-a-time pacing | Explicit pacing exception; the skill wins |
+| Opus 4.7 eval coverage | 0 tests pinned to `claude-opus-4-7` | 1 eval, 2 cases, `periodic` tier |
+
+| Eval case | Result |
+|---|---|
+| Routing precision (3 positive + 3 negative prompts) | 3/3 positives route correctly, 0/3 negatives route. TP 100%, FP 0%. Meets thresholds. |
+| Fanout A/B (3-file read, overlay ON vs OFF) | 0 parallel tool calls in first turn on both arms under `claude -p`. Assertion passes trivially, real effect unmeasured. Carried forward as P0 TODO for re-run inside Claude Code's real harness. |
+
+| Test suite | Before | After |
+|---|---|---|
+| `bun test` failures on clean checkout | 10 (pre-existing flaky timeouts + 2 new golden drifts) | 0 |
+| "no compiled binaries in git" test runtime | ~12.7s, flaky at 5s timeout | 0.9s with `fs.statSync` + mode filter |
+| Parameterized host smoke tests | 7 failing with stale generated output | All green after the overlay split regenerates cleanly |
+
+### What this means for anyone running gstack on Opus 4.7
+
+Regenerating with `--model opus-4-7` now gives you a SKILL.md that carries the 4.7-specific nudges (fanout, effort-match, batch questions, literal interpretation), while Sonnet and Haiku users get the model-agnostic overlay without leakage. Routing gets the full skill inventory and a softer fallback so casual prompts like "wtf is this Python syntax" do not accidentally invoke `/investigate`. The fanout claim is honestly labeled "unverified under `claude -p`" with a P0 TODO rather than asserted. Run `bun test test/skill-e2e-opus-47.test.ts` with `EVALS=1` to reproduce the measurement. The full plan file for this remediation lives at `~/.claude/plans/system-instruction-you-are-working-polymorphic-kazoo.md`.
+
+### Itemized changes
+
+#### Added
+
+- New `model-overlays/opus-4-7.md` inheriting from `claude.md` via `{{INHERIT:claude}}`. Holds the four Opus-4.7-specific nudges: Fan out explicitly (with concrete `[Read(a), Read(b), Read(c)]` example), Effort-match the step, Batch your questions (with pacing exception), Literal interpretation awareness (with branch-scope boundary).
+- `opus-4-7` entry in `ALL_MODEL_NAMES` in `scripts/models.ts`. `resolveModel()` routes `claude-opus-4-7-*` to the new overlay, all other `claude-*` variants continue to route to `claude`.
+- `test/skill-e2e-opus-47.test.ts`: first E2E pinned to `claude-opus-4-7`. Two cases (fanout A/B, routing precision), 8 assertions, `periodic` tier. Gated on `EVALS=1`.
+- Regression tests in `test/gen-skill-docs.test.ts` for the new routing shape: asserts slash-prefixed skill references (`/office-hours` not `office-hours`), asserts `/context-save` + `/context-restore` present (guards the stale `/checkpoint` name regression), asserts "when in doubt, invoke" policy present (guards the hard `ALWAYS invoke` regression).
+
+#### Changed
+
+- `model-overlays/claude.md` trimmed back to model-agnostic nudges (Todo-list discipline, Think before heavy actions, Dedicated tools over Bash). Opus-4.7-specific content moved to `opus-4-7.md`.
+- `scripts/resolvers/preamble/generate-routing-injection.ts`: aligned with the new SKILL.md.tmpl policy ("when in doubt, invoke"), renamed stale `/checkpoint` references to `/context-save` + `/context-restore`, added 12 missing routes (full skill inventory now covered).
+- `SKILL.md.tmpl` routing section: added the same 12 missing routes; added branch-scope boundary to "Fix ALL failing tests"; added explicit pacing exception to "Batch your questions" so skill workflows win on pacing.
+- `scripts/resolvers/preamble/generate-voice-directive.ts`: voice example closing changed from "Want me to ship it?" to "Want me to fix it?" (preserves review gates on a literal 4.7 interpreter).
+- `scripts/resolvers/utility.ts:372`: co-author trailer fallback `Claude Opus 4.6` → `Claude Opus 4.7` (the PR updated `hosts/claude.ts` but missed this fallback).
+
+#### Fixed
+
+- "No compiled binaries in git" tests in `test/skill-validation.test.ts` rewritten to use `fs.statSync` + mode-100755 filter instead of `xargs -I{} sh -c` per file. 12.7s → 907ms, flaky-at-5s-timeout → green.
+- `test/team-mode.test.ts` setup tests given a 180s budget. `./setup` does a full install + Bun binary build + skill regeneration and takes 60-90s; the 5s default was timing out.
+- Branch rebased on `origin/main` v1.6.0.0 (security wave). VERSION + CHANGELOG follow the branch-scoped discipline in CLAUDE.md: new entry on top of main's 1.6.0.0, no drift.
+
+#### For contributors
+
+- Eval infrastructure now supports model-pinned tests. `test/skill-e2e-opus-47.test.ts:mkEvalRoot(suffix, includeOverlay)` is the pattern: installs per-skill SKILL.md under `.claude/skills/`, writes explicit routing CLAUDE.md, optionally inlines the opus-4-7 overlay for A/B arms. `claude -p` does not auto-load SKILL.md content as system context, so the overlay has to be inlined into CLAUDE.md for the A/B to be observable in that harness.
+- New touchfile entries: `fanout: overlay ON emits >= parallel calls...` and `routing precision: positives route, negatives do not` in `test/helpers/touchfiles.ts`, both `periodic`. Only fire when `model-overlays/`, `scripts/models.ts`, `scripts/resolvers/model-overlay.ts`, `SKILL.md.tmpl`, or `scripts/resolvers/preamble/generate-routing-injection.ts` change.
+- Known gap (P0 TODO in `TODOS.md`): verify the fanout nudge under Claude Code's real harness, not `claude -p`. The claim in the overlay is unmeasured until that runs.
+
 ## [1.6.0.0] - 2026-04-21
 
 ## **The token leak in pair-agent sessions is closed by splitting the daemon into two HTTP listeners, not by pretending one port can be two things at once.**
