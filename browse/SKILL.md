@@ -962,6 +962,7 @@ $B prettyscreenshot --cleanup --scroll-to ".pricing" --width 1440 ~/Desktop/hero
 | `closetab [id]` | Close tab |
 | `newtab [url] [--json]` | Open new tab. With --json, returns {"tabId":N,"url":...} for programmatic use (make-pdf). |
 | `tab <id>` | Switch to tab |
+| `tab-each <command> [args...]` | Run a command on every open tab. Returns JSON with per-tab results. |
 | `tabs` | List open tabs |
 
 ### Server

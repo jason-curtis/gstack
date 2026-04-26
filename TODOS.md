@@ -1,5 +1,57 @@
 # TODOS
 
+## Sidebar Terminal (cc-pty-import follow-ups)
+
+### v1.1: PTY session survives sidebar reload
+
+**What:** Today the Terminal tab's PTY dies with the WebSocket — sidebar
+reload, side-panel close, even a quick navigate-away in another tab close
+the session. v1.1 should key the PTY on a tab/session id so a reload
+reattaches to the existing claude process and you keep `/resume` history.
+
+**Why:** Mid-task resilience. When you've been pair-programming with claude
+for 20 minutes and an accidental Cmd-R blows it away, the cost is real.
+
+**Pros:** Better UX, fewer interrupted sessions. **Cons:** Session-tracking
+state, ghost-process risk, lifecycle bugs (when DOES the PTY actually go
+away?). v1 chose the simple "PTY dies with WS" model deliberately.
+
+**Context:** /plan-eng-review Issue 1C decision (cc-pty-import branch,
+2026-04-25). v1 ships with phoenix's lifecycle. **Depends on:**
+cc-pty-import landed.
+
+**Priority:** P2 (nice-to-have).
+**Effort:** M. Likely needs a per-tab session map keyed by chrome.tabs.id
+plus a TTL so abandoned PTYs eventually exit.
+
+---
+
+### v1.1+: Audit `/health` token distribution
+
+**What:** Codex's outside-voice review on cc-pty-import flagged that
+`/health` already surfaces `AUTH_TOKEN` to any localhost caller in headed
+mode (`server.ts:1657`). That's a pre-existing soft leak — anything
+running on localhost gets the root token by hitting `/health`.
+
+**Why:** cc-pty-import sidesteps it by NOT putting the PTY token there
+(uses an HttpOnly cookie path instead). But the underlying leak is still
+shippable surface. A second extension or a localhost web app could
+currently scrape `AUTH_TOKEN` and hit any browse-server endpoint.
+
+**Pros:** Closes a real privilege-escalation path on multi-extension
+machines. **Cons:** Either we tighten the gate (Origin must be OUR
+extension id, not just any chrome-extension://) or we move bootstrap
+discovery off `/health` entirely. Either has migration cost for tests
+and the existing extension.
+
+**Context:** codex finding #2 on cc-pty-import plan-eng review. Not in
+scope of that PR; deliberately deferred to keep PTY-import small.
+
+**Priority:** P2.
+**Effort:** M.
+
+---
+
 ## Testing
 
 ### Pre-existing test failures surfaced during v1.12.0.0 ship

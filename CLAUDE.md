@@ -225,12 +225,35 @@ When you need to interact with a browser (QA, dogfooding, cookie setup), use the
 project uses.
 
 **Sidebar architecture:** Before modifying `sidepanel.js`, `background.js`,
-`content.js`, `sidebar-agent.ts`, or sidebar-related server endpoints, read
-`docs/designs/SIDEBAR_MESSAGE_FLOW.md`. It documents the full initialization
-timeline, message flow, auth token chain, tab concurrency model, and known
-failure modes. The sidebar spans 5 files across 2 codebases (extension + server)
-with non-obvious ordering dependencies. The doc exists to prevent the kind of
-silent failures that come from not understanding the cross-component flow.
+`content.js`, `terminal-agent.ts`, or sidebar-related server endpoints,
+read `docs/designs/SIDEBAR_MESSAGE_FLOW.md`. The sidebar has one primary
+surface — the **Terminal** pane (interactive `claude` PTY) — with
+Activity / Refs / Inspector as debug overlays behind the footer's
+`debug` toggle. The chat queue path was ripped once the PTY proved out;
+`sidebar-agent.ts` and the `/sidebar-command` / `/sidebar-chat` /
+`/sidebar-agent/event` endpoints are gone. The doc covers the WS auth
+flow, dual-token model, and threat-model boundary — silent failures
+here usually trace to not understanding the cross-component flow.
+
+**WebSocket auth uses Sec-WebSocket-Protocol, not cookies.** Browsers
+can't set `Authorization` on a WebSocket upgrade, but they CAN set
+`Sec-WebSocket-Protocol` via `new WebSocket(url, [token])`. The agent
+reads it, validates against `validTokens`, and MUST echo the protocol
+back in the upgrade response — without the echo, Chromium closes the
+connection immediately. `Set-Cookie: gstack_pty=...` is kept as a
+fallback for non-browser callers (the cross-port `SameSite=Strict`
+cookie path doesn't survive from a chrome-extension origin).
+
+**Cross-pane PTY injection.** The toolbar's Cleanup button and the
+Inspector's "Send to Code" action both pipe text into the live claude
+PTY via `window.gstackInjectToTerminal(text)`, exposed by
+`sidepanel-terminal.js`. No `/sidebar-command` POST — the live REPL is
+the only execution surface in the sidebar now.
+
+**`/health` MUST NOT surface any shell-grant token.** It already leaks
+`AUTH_TOKEN` to localhost callers in headed mode (a v1.1+ TODO). Don't
+make that worse by adding the PTY session token there. PTY auth flows
+through `POST /pty-session` only.
 
 **Transport-layer security** (v1.6.0.0+). When `pair-agent` starts an ngrok tunnel,
 the daemon binds two HTTP listeners: a local listener (127.0.0.1, full command

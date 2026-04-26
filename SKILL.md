@@ -1038,6 +1038,7 @@ Refs are invalidated on navigation — run `snapshot` again after `goto`.
 | `closetab [id]` | Close tab |
 | `newtab [url] [--json]` | Open new tab. With --json, returns {"tabId":N,"url":...} for programmatic use (make-pdf). |
 | `tab <id>` | Switch to tab |
+| `tab-each <command> [args...]` | Run a command on every open tab. Returns JSON with per-tab results. |
 | `tabs` | List open tabs |
 
 ### Server
